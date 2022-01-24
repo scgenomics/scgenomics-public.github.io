@@ -33,7 +33,9 @@ library(ggraph) # needed for clustree
 CFG <- list() # global
 
 CFG$data_dir <- "/opt/course/day2" # where to ready data from
+## CFG$data_dir <-  "~/data/course/day2" # where to ready data from
 CFG$output_dir <- "."              # where to write data to
+## CFG$output_dir <- "~/tmp/day2"     # where to write data to
 
 CFG$random_seed <- 2033
 ```

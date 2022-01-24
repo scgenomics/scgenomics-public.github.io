@@ -65,6 +65,7 @@ write.table(df, file=celltypes_file, sep="\t",
 ## in the data directory:
 geneorder_file = paste0(CFG$data_dir, "/geneorder.txt")
 
+## set up the infercnv object with all necessary information:
 infercnv_obj = infercnv::CreateInfercnvObject(delim="\t",
       raw_counts_matrix=GetAssayData(srat, assay='RNA', slot='counts'),
       annotations_file=celltypes_file,
@@ -94,9 +95,11 @@ infercnv_obj <- infercnv::run(infercnv_obj,
                              plot_steps=FALSE, 
                              sd_amplifier = 2,
                              HMM=FALSE)
-## plot_steps=TRUE leads to weird crash, see github
+## plot_steps=TRUE may lead to weird crash, see github
+## cutoff: min average read counts per gene for reference cells
+## sd_amplifier: noise threshold. Higher: less noise but also less signal.
 
-## it took a while so let's save this object:
+## This took a while so let's save this object:
 file <- paste0(CFG$output_dir, "/infercnv_obj.rds")
 saveRDS(file=file,infercnv_obj)
 
