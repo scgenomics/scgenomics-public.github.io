@@ -1,0 +1,176 @@
+---
+layout: default
+title: Filtering cells
+---
+
+<!-- stuff to make Rmarkdown do what we want:  -->
+```{r setup, include=FALSE, eval=FALSE}
+suppressMessages(library(rmarkdown))
+knitr::opts_chunk$set(echo = TRUE,
+  fig.width=9,
+  fig.height=6,
+  cache=FALSE, # only use TRUE if you're really sure. Also check xfun::cache_rds
+  collapse=TRUE,  # put misc. outputs from one chunk in one block
+  tidy=TRUE, # tidies up the R code
+  tidy.opts=list(arrow=TRUE, 
+                 indent=2,
+                 width.cutoff = 60))
+```
+
+<!-- load complete state from previous lesson -->
+```{r loadsession, include=FALSE, eval=FALSE} 
+source('../libs.R')
+load("../1-loadingdata/session.rda")
+gc()
+
+```
+# Filtering cells
+
+Not all droplets contain good-enough cells to continue with the
+analysis.  We have to filter them out before normalizing.  Important
+characteristics to judge the quality of barcodes are the number of
+transcripts (too low: no cell, or probably dead; too high: the barcode may
+contain a multiblet) and the percentage of mitochondria (too high: the cell may
+be degraded). 
+
+Setting cut-off values often involves a judgement call. General (and
+somewhat vague and/or time-consuming) advice is to:
+
+1. Be lenient. Play around and see how downstream analysis is affected
+1. Cutoffs should not be very critical: changing a cutoff by e.g. 10% should change the downstream results by much less than 10% (even if those results can  only be judged by eye)
+1. Use round numbers to avoid any suggestion of cherry-picking
+1. Good (initial) guesses for cutoffs are 'shoulders' or 'knees' in the distribution. If the distribution is bimodal (two peaks), being halfway the two peaks is an obvious choice
+1. Write down the reasoning for your choice of cutoff, this can help during re-analysis and picky reviewers
+
+##  Transcript counts
+
+We simply plot the density of number of transcripts per cell and choose
+cutoffs, both for (log)number of transcripts per cell and for
+percentage mitochondria.
+
+<!-- @@ explain logic of the "nCount_RNA" name  below -->
+
+```{r txptcounts, eval=FALSE}
+
+## Seurat makes extensive use of ggplot2. ggplots are objects that can beassigned
+## to variables. They are actually plotted by typing their name.
+## The following gives identical results:
+##
+## VlnPlot(srat, "nCount_RNA", group.by = 'lib') # plotted directly
+## v <- VlnPlot(srat, "nCount_RNA", group.by = 'lib') # not yet plotted
+## v # now plotted. Advantage is that you can more easily change things
+
+v <- VlnPlot(srat, "nCount_RNA", group.by = 'lib')
+
+## show it:
+v 
+
+## add lines, and plot in linear and log scale:
+lines <- seq(from = 0, to = 100000, by = 5000)
+hlines <- geom_hline(yintercept = lines, col = "grey", linetype=1, lwd=0.1)
+
+v + hlines # plot now has those lines added
+
+## another trick is to change the scale to logarithmic:
+
+v + scale_y_continuous(trans='log2') + hlines
+
+```
+
+Between ~ 5000 and 60,000 transcripts seems to be a reasonable
+selection. The `CFG$min_txpts` and `CFG$max_txpts` parameters you saw at
+the beginning are used for this purpose.
+
+Generally (but not always), the number of transcripts and number of
+genes expressed show a clear monotonic (=always increasing)
+relationship, so additionally selecting cells based on number of genes
+expressed is not necessary.
+
+Let's show this relationship, both in linear scale and in log scale. 
+A convenient way to show thing side-by-side for easy comparison is
+to use `library(patchwork)` and its `|`-operator.
+
+```{r txpt-vs-genes, eval=FALSE}
+
+## create a scatter graph
+f_lin <- FeatureScatter(srat, feature1='nCount_RNA', 
+  feature2='nFeature_RNA', pt.size=2)  + 
+  geom_hline(yintercept = CFG$max_pctmito, linetype=2) +
+  geom_vline(xintercept = c(CFG$min_txpts, CFG$max_txpts),linetype=2)
+
+f_lin
+
+## also show the transcripts in logarithmic scale:
+
+f_log = f_lin +  scale_x_continuous(trans='log2')  + scale_y_continuous(trans='log2') 
+
+f_lin | f_log
+
+```
+
+## Mitochondrial content
+
+The other criterion is the mitochondrial percentage.  The reasoning is
+that if a cell's integrity is compromised, the cytoplasmic RNA is
+degraded earlier than the mitochondrial which are protected by the
+mitochondrial membranes, hence leading to higher percentage of
+mitochondrial reads in 'bad' cells. It is not always clear-cut though,
+because e.g. celltypes such as myocytes have intrnisically high
+mitochondrial content. We will also plot the percentage mitochondrial reads.
+
+```{r mito, eval=FALSE}
+
+v <- VlnPlot(srat, "percent_mito", group.by = 'lib')
+v
+
+```
+
+This seems pretty clear-cut: any cell with more than 25% mitochondrial
+reads is suspect. Let's call it `max_pctmito`, and plot all the data as a
+scatter plot, including lines indicating our cutoffs. If we're satisfied
+we then subset the Seurat object using the `subset` function.
+
+## Final selection
+
+```{r mito-vs-counts, eval=FALSE}
+
+## actually set the cutoffs (best done at the beginning of your scripts to keep things tidy)
+CFG$min_txpts <- 5000
+CFG$max_txpts <- 60000
+CFG$max_pctmito <- 25
+
+## plot this:
+
+f <- FeatureScatter(srat, feature1='nCount_RNA',
+  feature2='percent_mito', pt.size=2) +
+  geom_hline(yintercept = CFG$max_pctmito, linetype=2) +
+  geom_vline(xintercept = c(CFG$min_txpts, CFG$max_txpts),linetype=2)
+
+f
+
+f + scale_x_continuous(trans='log2') 
+
+## how many cells will we discard by applying the selection?
+dim(srat)
+dim(subset(srat, nCount_RNA < CFG$min_txpts))
+dim(subset(srat, nCount_RNA > CFG$max_txpts))
+dim(subset(srat, percent_mito > CFG$max_pctmito))
+
+## lastly, subset the seurat object and save if needed
+
+srat <- subset(srat,
+               subset =
+                 nCount_RNA >= CFG$min_txpts
+               & nCount_RNA <= CFG$max_txpts
+               & percent_mito <= CFG$max_pctmito ) 
+
+dim(srat)
+
+```
+
+<!-- lastly, save the complete sesssion for the next time -->
+```{r savesession, include=FALSE, eval=FALSE} 
+## save complete state for next lesson
+## save.image("session.rda")
+save(file="session.rda", list=c("srat", ls(pat="col|CFG")))
+```

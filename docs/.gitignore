@@ -1,0 +1,15 @@
+_site
+.sass-cache
+.jekyll-cache
+.jekyll-metadata
+vendor
+404.html
+Gemfile.lock
+*_cache
+cache
+*.rds
+[^0]-*.R
+*.rda
+log
+*.log
+Rplots.pdf
