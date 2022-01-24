@@ -34,8 +34,8 @@
 ## # libraries
 ## CFG <- list() # global
 ## 
-## CFG$data_dir <- "~/data/course/day2/"   # where to read data from
-## CFG$output_dir <- "~/tmp/day2"              # where to write data to (can be sasme)
+## CFG$data_dir <- "/opt/course/day2" # where to ready data from
+## CFG$output_dir <- "."              # where to write data to
 ## 
 ## CFG$random_seed <- 2033
 ## 

@@ -48,8 +48,8 @@ library(patchwork) # composing multi-panel plots
 ```r
 CFG <- list() # global
 
-CFG$data_dir <- "~/data/course/day1/"   # where to read data from
-CFG$output_dir <- "~/tmp/day1"              # where to write data to
+CFG$data_dir <- "/opt/course/day1" # where to ready data from
+CFG$output_dir <- "."              # where to write data to
 
 # explained later
 CFG$ndims <- 25                         
