@@ -37,7 +37,7 @@ show(p)
 p + scale_x_continuous(trans='log2') + 
    scale_y_continuous(trans='log2')
 
-, eval=FALSE}
+}
 ```
 
 These 'off-diagonal' cells express the same number of transcripts with
@@ -84,7 +84,7 @@ for (plate in plates) {
 ## again using show() because we're inside a loop
 show(p_ngenes | p_pcthemo)
 
-, eval=FALSE}
+}
 
 ## set a maximum to get rid of cells, and do the selection
 CFG$max_pct_hemo <- 5                   #

@@ -64,7 +64,7 @@ head(srat@meta.data[ , columns])
 for (col in columns) {
     cat("\n====\n", col, ":")
     print(table(srat@meta.data[[col]]))
-, eval=FALSE}
+}
 ```
 
 Let's show the clusters side-by-side with the cell types we gave you. 
@@ -90,7 +90,7 @@ for (reso in c("0.4",  "0.8", "1.2" )) {
 
  p <- DimPlot(srat, pt.size=1, group.by=column, cols=clus.colors ) +  labs(title=reso)
  p_clusbyreso[[reso]]<- p
-, eval=FALSE}
+}
 
 ## plot them side by side:
 

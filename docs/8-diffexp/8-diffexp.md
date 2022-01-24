@@ -194,11 +194,11 @@ types2 [ WhichCells(srat, idents=c(0,5) ) ] <- 'early EC'
 types2 [ WhichCells(srat, idents=3) ] <- 'EC'
 types2 [ WhichCells(srat, idents=7) ] <- 'secretory prog.'
 ## override those with high AVIL expression:
-types2 [ WhichCells(srat, idents=7, expression = { AVIL > 2 , eval=FALSE} ) ] <- 'Tuft'
+types2 [ WhichCells(srat, idents=7, expression = { AVIL > 2 } ) ] <- 'Tuft'
 types2 [ WhichCells(srat, idents=10) ] <- 'EEC'
 types2 [ WhichCells(srat, idents=2) ] <- 'Goblet'
 ## override those with high Paneth expression
-types2 [ WhichCells(srat, idents=2, expression =  { Paneth1 > 1 , eval=FALSE}) ] <- 'Paneth'
+types2 [ WhichCells(srat, idents=2, expression =  { Paneth1 > 1 }) ] <- 'Paneth'
 
 srat <- AddMetaData(srat, col.name='type2', metadata=types2)
 

@@ -63,7 +63,7 @@ DoHeatmap(subset(srat, downsample = 50),
 ## compareCluster crashes on gene symbols, so we have tot translate
 ## to EnsEMBL ids:
 anno <- readRDS(file=paste0(CFG$data_dir, "/annotation.rds"))
-lookup_ensg_id = function(id){anno[id,'gene_id'] , eval=FALSE} 
+lookup_ensg_id = function(id){anno[id,'gene_id'] } 
 
 ## compareClusters needs a list of clusters, not a 
 ## data.frame. Convert our top10:

@@ -64,7 +64,7 @@ columns <- grep("SCT_snn_res", names(srat@meta.data), value = TRUE)
 for (col in columns) {
   cat("\n====\n", col, ":")
   print(table(srat@meta.data[[col]]))
-, eval=FALSE}
+}
 
 ```
 
@@ -93,7 +93,7 @@ for (reso in c("0.4", "0.8", "1.2")) {
   p <- DimPlot(srat, pt.size = 1, group.by = clus.column, cols = clus.colors) +
     labs(title = reso)
   p_clusbyreso[[reso]] <- p
-, eval=FALSE}
+}
 
 p_clusbyreso[[1]] |  p_clusbyreso[[2]] | p_clusbyreso[[3]] 
 ##=> 0.8 is fine?

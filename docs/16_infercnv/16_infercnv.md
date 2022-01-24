@@ -87,7 +87,7 @@ saveRDS(file=file,infercnv_obj)
 ```
 
 
-<!-- {r include-cnv-plot, echo = TRUE, out.width="30%" include=FALSE , eval=FALSE} -->
+<!-- {r include-cnv-plot, echo = TRUE, out.width="30%" include=FALSE } -->
 
 <!-- following is needed to get the plot into the knitted product as it is external -->
 
