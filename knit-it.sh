@@ -74,15 +74,5 @@ for i in $dirs; do
 
 done
 
-## also produce complete R files for easy testing:
-
-for i in $day1; do 
-    cat $i/*.R
-done | grep -v ^load | grep -v ^save  | grep -v 'source.*libs' > ~/tmp/day1-all.R
-
-for i in $day2; do 
-    cat $i/*.R 
-done | grep -v ^load | grep -v ^save  | grep -v 'source.*libs' | grep -v 'file.copy' > ~/tmp/day2-all.R
-
-echo "Written to  ~/tmp/day1-all.R and ~/tmp/day2-all.R"
+## don't produce complete R files for easy testing!
 
