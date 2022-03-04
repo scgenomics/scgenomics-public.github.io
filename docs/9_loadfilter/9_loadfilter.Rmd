@@ -40,7 +40,7 @@ library(ggraph) # needed for clustree
 ```
 
 ```{r configvars, eval=FALSE}
-# libraries
+
 CFG <- list() # global
 
 CFG$data_dir <- "/opt/course/day2" # where to ready data from
