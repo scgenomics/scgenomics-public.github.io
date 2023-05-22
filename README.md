@@ -1,10 +1,7 @@
 <!-- 
 
 Note to developers/maintainers: the R-code is put there automatically
-when running ~/git/scgenomics.github.io/knit-it.sh.
-Be sure to git add + commit it any changes there.
-
-
+when running ~/git/scgenomics.github.io/push-to-public.sh
 
 -->
 
