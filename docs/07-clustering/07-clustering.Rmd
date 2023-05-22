@@ -1,0 +1,139 @@
+---
+layout: default
+title: Clustering
+---
+
+<!-- stuff to make Rmarkdown do what we want:  -->
+```{r setup, include=FALSE}
+suppressMessages(library(rmarkdown))
+knitr::opts_chunk$set(echo = TRUE,
+  fig.width=9,
+  fig.height=6,
+  cache=FALSE, # only use TRUE if you're really sure. Also check xfun::cache_rds
+  collapse=TRUE,  # put misc. outputs from one chunk in one block
+  tidy=TRUE, # tidies up the R code
+  tidy.opts=list(arrow=TRUE, 
+                 indent=2,
+                 width.cutoff = 60))
+```
+
+<!-- load complete state from previous lesson -->
+```{r loadsession, include=FALSE} 
+source('../libs.R')
+load("../06-markergenes/session.rda")
+gc()
+
+```
+
+# Clustering
+
+The data as presented in the UMAP's shows clusters visually, but we
+cannot really work with them. We need to have a actual assignment of
+cells to clusters in order to e.g. find genes that are differentially
+expressed between clusters. Keep in mind that some of the clustering
+behaviour is due to confounding (as we already saw), whereas the rest is
+actual biology.
+
+There are many clustering algorithms, with many parameters to
+tweak. Because single-cell data sets are huge, speed is required which
+is achieved by first computing the network of approximate nearest
+neighbors ('ANN') using the `FindNeighbors` function.  `FindClusters`
+then uses this network to establish the clustering. `FindClusters`
+offers 4 different methods. The default method (Louvain clustering,
+algorithm=1) is fine and runs everywhere. 
+
+In the ideal case, clusters are 'obvious': each cluster is a little
+island, and all the islands are well separated. But frequently things
+are less clear-cut, with untidy continents and peninsulas connected by
+sprawling archipelagos.  The algorithm has to make choices on where to
+divide bigger groups into separate clusters.  This of course depends on
+the data, but also on a parameter we have to supply, namely the
+resolution. A low resolution will give fewer but larger clusters; 
+a high resolution yields more but smaller clusters. Again, you have
+to play around a bit. 
+
+Seurat stores the cluster assignments (simple integers) in the `meta.data`
+slot, each under a name constructed from the `DefaultAssay` and the resolution.
+This allows you to easily compare clusterings. In addition, the most recent
+clustering is stored in the `seurat_clusters` column. 
+
+```{r clustering}
+
+srat <- FindNeighbors(srat,  dims = 1:CFG$ndims)
+                              
+srat <- FindClusters(srat, resolution = 0.4,
+                              algorithm = 1)
+
+srat <- FindClusters(srat, resolution = 0.8,
+                              algorithm = 1)
+
+srat <- FindClusters(srat, resolution = 1.2,
+                              algorithm = 1)
+
+## show the columns that were added to the metadata:
+head(srat@meta.data)
+
+## or
+columns <- grep("SCT_snn_res", names(srat@meta.data), value=TRUE)
+head(srat@meta.data[ , columns])
+
+## show numbers of cells per cluster (top row shows the cluster ids)
+for (col in columns) {
+    cat("\n====\n", col, ":")
+    print(table(srat@meta.data[[col]]))
+}
+
+```
+
+Let's show the clusters side-by-side with the cell types we gave you. 
+
+<!--  The assignment to list() is partly because it wouldn't plot ... -->
+
+```{r plot-clusters}
+
+## assign plot to a variable for convenience:
+p_bytype <- DimPlot(srat, pt.size=1, group.by='type', cols=type.colors) 
+
+## for easy plotting, assign the different resolution plots to a list() 
+p_clusbyreso <- list()
+
+for (reso in c("0.4",  "0.8", "1.2" )) { 
+ 
+ column <- paste0("SCT_snn_res.", reso)
+ clusters <-sort(unique(srat@meta.data[[column]]))
+ 
+ ## switching color scheme to make it look different:
+ clus.colors <- Polychrome::alphabet.colors(length(clusters))
+ names(clus.colors) <- as.character(clusters)
+
+ p <- DimPlot(srat, pt.size=1, group.by=column, cols=clus.colors ) +  labs(title=reso)
+ p_clusbyreso[[reso]]<- p
+}
+
+## plot them side by side:
+
+p_bytype | p_clusbyreso[[ "0.4" ]] 
+
+p_bytype | p_clusbyreso[[ "0.8" ]] 
+ 
+p_bytype | p_clusbyreso[[ "1.2" ]] 
+
+```
+
+```{r rm_p_clusbyreso, include=FALSE} 
+
+rm(p_clusbyreso)
+gc()
+
+```
+
+Most clusters correspond to identifiable groups in the UMAP.
+Based on this, let's fix the resolution at 1.2 and proceed.
+
+<!-- lastly, save the complete sesssion for the next time -->
+```{r savesession, include=FALSE} 
+## save complete state for next lesson
+## save.image("session.rda")
+if(Sys.getenv("nodump")!="TRUE")
+    save(file="session.rda", list=c("srat", ls(pat="col|CFG")))
+```

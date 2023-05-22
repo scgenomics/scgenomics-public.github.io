@@ -1,0 +1,150 @@
+---
+layout: default
+title: Removing confounders
+---
+
+<!-- stuff to make Rmarkdown do what we want:  -->
+```{r setup, include=FALSE}
+suppressMessages(library(rmarkdown))
+knitr::opts_chunk$set(echo = TRUE,
+  fig.width=9,
+  fig.height=6,
+  cache=FALSE, # only use TRUE if you're really sure. Also check xfun::cache_rds
+  collapse=TRUE,  # put misc. outputs from one chunk in one block
+  tidy=TRUE, # tidies up the R code
+  tidy.opts=list(arrow=TRUE, 
+                 indent=2,
+                 width.cutoff = 60))
+```
+
+<!-- load complete state from previous lesson -->
+
+```{r loadsession, include=FALSE} 
+source('../libs.R')
+load("../11-normdimred/session.rda")
+data(refdata_cellranger_GRCh38_3.0.0)
+```
+
+# Removing confounders
+
+You can remove the usual confounders (see the intestinal organoid
+lessons), but this time that is not enough.  Within the main clusters,
+there are cell cycle-induced sub-clusters that persist.
+
+The reason is that although the canonical cell cycle genes are gone,
+there are more cell cycle genes than the main one and their variability
+can still drive the UMAP differences.  We can identify these
+extra genes by their correlation with the cell cycle module scores. The
+`SCutils` package contains functions to do this, in two steps. The
+function `metadataCorrelations` finds, for each gene, the correlation
+(over all cells) with  cell meta-data. This can be any numerical
+metadata, but in the current case we would use `S.Score` and `G2M.Score`
+metadata which were calculated by `Seurat::CellcycleScoring()` in one of
+the previous steps.
+
+Next, the function `SCutils::derivedCellcycleGenes()` visualizes this
+and returns lists of genes that strongly correlate with `S.Score` and/or
+`G2M.Score` but not both[^explain]. See `?metadataCorrelations` and
+`?derivedCellcycleGenes` and their source code for details.
+
+Genes in these lists can subsequently be added to the set
+of genes that are to be removed from the variable genes, thereby
+hopefully achieving a better deconfounding.
+
+[^explain]: We explicity keep the genes that are correlating with both S and G2M phase simultaneously, because they might be 'master switches' for the cellcycle.
+
+```{r deconfounding}
+
+Scor <- metadataCorrelations(srat, 'S.Score')
+
+G2Mcor <- metadataCorrelations(srat, 'G2M.Score')
+
+additional <- derivedCellcycleGenes(Scor=Scor,
+                                    Sgenes=genelists$s.genes,
+                                    G2Mcor=G2Mcor,
+                                    G2Mgenes=genelists$g2m.genes,
+                                    plot=TRUE)
+
+## see what's in the lists:
+show(additional)
+
+## also get the other deconfounders:
+stress_genes <- genelists$stress # OR: SCutils::lookup.stressgenes()
+hb_genes <- genelists$hemo # as before
+
+## combine these sets (also including stress_genes and hemoglobin genes)
+remove <- unique(c(cc.genes$s.genes, cc.genes$g2m.genes, 
+  additional$S.derived, additional$G2M.derived, 
+  stress_genes, hb_genes))
+
+## check how many we will loose now:
+length(intersect(VariableFeatures(srat), remove))
+
+```
+
+## Redo the Dimensional Reduction
+
+We can now throw out the confounders. 
+After this, we have to do the complete dimensional reduction over again!
+
+```{r remove-vargenes}
+
+## do the removal, for both the 'RNA' (i.e. LogNorm) and 'SCT' assays:
+VariableFeatures(srat, assay='RNA') <-
+   setdiff( VariableFeatures(srat, assay='RNA'), remove)
+
+VariableFeatures(srat, assay='SCT') <- 
+   setdiff( VariableFeatures(srat, assay='SCT'), remove)
+
+```
+
+**Exercise 1:** How many variables features are removed / remain ? Can you explain the difference in numbers?
+
+<!-- 
+length(VariableFeatures(srat, assay='RNA'))
+length(VariableFeatures(srat, assay='SCT'))
+-->
+
+```{r rerun-dimred}
+srat <- RunPCA(srat, verbose = TRUE, npcs = 50)
+
+srat <- RunUMAP(srat, dims=1:CFG$ndims )
+
+## show the results:
+p_plate <- DimPlot(srat, reduction = "umap", pt.size=0.5,
+  group.by='plate_id')
+
+p_patient <- DimPlot(srat, reduction = "umap", pt.size=0.5,
+  group.by='patient')
+
+p_type <- DimPlot(srat, reduction = "umap",pt.size=0.5,
+  group.by='type')
+
+p_phase <- DimPlot(srat, reduction = "umap", pt.size=0.5,
+  group.by='Phase')
+
+## use patchwork again to get a 2 x 2 plot
+( p_plate | p_patient ) / ( p_type | p_phase )
+
+## and also the continuous variables:
+FeaturePlot(srat, pt.size=0.5, 
+  feature=c('nCount_RNA', 'percent_mito',
+  'pct_hemo', 'stress1'), order=TRUE,
+  cols=CFG$gradient.colors)
+
+```
+
+**Exercise 2:** Make side-by-side UMAP plots before and after deconfounding, and compare to see if we indeed got rid of confounding.
+
+**Exercise 3:** Is sex a confounder for these samples? 
+You can use `genelists$male` and/or `genelists$female` for this. 
+Same question for the ribosomal protein genes, using `genelists$ribo`
+(or any of the equivalent `lookup.\*` functions).
+
+<!-- lastly, save the complete sesssion for the next time -->
+```{r savesession, include=FALSE} 
+## save complete state for next lesson
+## save.image("session.rda")
+if(Sys.getenv("nodump")!="TRUE")
+    save(file="session.rda", list=c("srat", ls(pat="col|CFG")))
+```

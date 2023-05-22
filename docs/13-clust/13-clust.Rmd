@@ -1,0 +1,180 @@
+---
+layout: default
+title: Clustering
+---
+
+<!-- stuff to make Rmarkdown do what we want:  -->
+```{r setup, include=FALSE}
+suppressMessages(library(rmarkdown))
+knitr::opts_chunk$set(echo = TRUE,
+  fig.width=9,
+  fig.height=6,
+  cache=FALSE, # only use TRUE if you're really sure. Also check xfun::cache_rds
+  collapse=TRUE,  # put misc. outputs from one chunk in one block
+  tidy=TRUE, # tidies up the R code
+  tidy.opts=list(arrow=TRUE, 
+                 indent=2,
+                 width.cutoff = 60))
+```
+
+<!-- load complete state from previous lesson -->
+
+```{r loadsession, include=FALSE} 
+source('../libs.R')
+load("../12-confound/session.rda")
+data(refdata_cellranger_GRCh38_3.0.0)
+```
+
+```{r pretend-continuity, include=FALSE} 
+### these plots were made in the previous excercise but are too large to 
+### include in the session.rda. Therefore, recreate them here.
+p_plate <- DimPlot(srat, reduction = "umap", pt.size=0.5,
+  group.by='plate_id')
+
+p_patient <- DimPlot(srat, reduction = "umap", pt.size=0.5,
+  group.by='patient')
+
+p_type <- DimPlot(srat, reduction = "umap",pt.size=0.5,
+  group.by='type')
+
+p_phase <- DimPlot(srat, reduction = "umap", pt.size=0.5,
+  group.by='Phase')
+### don't plot them!
+```
+
+<!-- defaultassay is  still SCT -->
+
+# Clustering
+
+The next step is clustering, i.e. finding distinct groups of cells that
+hopefully make sense biologically. Note that clustering is distinct from
+creating UMAPs. Often (but not always), the groups of cells 
+visible in the UMAP correspond tot he clusters found by `FindClusters`.
+
+Clustering algorithms (of which there are very many) need a parameter
+(often called the *resolution*) that controls how many clusters it will
+produce. Let's try a few.
+
+```{r clustering}
+
+srat <- FindNeighbors(srat, dims = 1:CFG$ndims)
+
+srat <- FindClusters(srat, resolution = 0.4, algorithm = 1)
+
+srat <- FindClusters(srat, resolution = 0.8, algorithm = 1)
+
+srat <- FindClusters(srat, resolution = 1.2, algorithm = 1)
+
+columns <- grep("SCT_snn_res", names(srat@meta.data), value = TRUE)
+
+## show numbers of cells per cluster (top row shows the
+## cluster ids)
+for (col in columns) {
+  cat("\n====\n", col, ":")
+  print(table(srat@meta.data[[col]]))
+}
+
+```
+
+<!-- note: you can also pass an array of resolutions -->
+
+## Results
+
+Let's show the results side-by-side to get a feel for it.
+
+```{r choosing-clusresol}
+
+## let's plot the different clusterings side by side
+## to see the differeces:
+
+p_clusbyreso <- list() # set up the list to hold the intermediate plots
+
+for (reso in c("0.4", "0.8", "1.2")) {
+
+  clus.column <- paste0("SCT_snn_res.", reso)
+  clusters <- sort(unique(srat@meta.data[[clus.column]]))
+
+  ## switching color scheme to make it look different:
+  clus.colors <- Polychrome::alphabet.colors(length(clusters))
+  ## clus.colors <-
+  ## Polychrome::kelly.colors(length(clusters))
+  names(clus.colors) <- as.character(clusters)
+
+  p <- DimPlot(srat, pt.size = 1, group.by = clus.column, cols = clus.colors) +
+    labs(title = reso)
+  p_clusbyreso[[reso]] <- p
+}
+
+## use patchwork to plot them side-by-side:
+p_clusbyreso[[1]] |  p_clusbyreso[[2]] | p_clusbyreso[[3]] 
+## => 0.8 is fine?
+```
+
+## Choose the resolution
+
+Based on the above steps it would seem that 0.8 is a reasonable choice,
+let's show that:
+
+```{r  }
+## set the identies to the clusters coming from the 0.8 resolution:
+
+  clus.column <- paste0("SCT_snn_res.", 0.8)
+  Idents(srat) <- clus.column
+  
+  clusters <- sort(unique(srat@meta.data[[clus.column]]))
+  ## switching color scheme to make it look different:
+  cluster.colors <- Polychrome::alphabet.colors(length(clusters))
+  names(cluster.colors) <- as.character(clusters)
+
+## and show result with the other umaps to get your bearings:
+  p_clus <- DimPlot(srat, reduction = "umap", pt.size=0.5, 
+     group.by=clus.column, cols=cluster.colors)
+
+( p_plate | p_patient ) / ( p_type | p_clus )
+
+rm(p_clusbyreso)
+gc()
+
+```
+
+## Using clustree
+
+Although the best clustering has always to be informed by the biology,
+we often need a first guess.  As with the number principal components
+previously, there are several rules of thumb to choose the 'best' resolution
+for the clustering.
+
+The `clustree` library may be able to help decide this.  It depicts the
+'splitting' of clusters as the resolution increases, with
+interconnections where cells jump between the main clusters.  A
+reasonable resolution is one were the clusters stop splitting up and
+there is little 'jumping around' for a few resolutions steps.
+
+For this it is useful to create a larger range of resolutions. 
+We can then plot them using the `clustree` function. 
+
+It turns out that `FindClusters` can also accept a vector of
+resolutions (this is undocumented).  Let's use that this time, for
+brevity.
+
+```{r clustree}
+
+srat <- FindClusters(srat, 
+                     resolution = seq(0.4, 2.0, 0.2), 
+                     algorithm = 1)
+
+clustree::clustree(srat, prefix = "SCT_snn_res.", node_size=2, edge_width=0.5)
+
+## based on this I think it's still good to choose 0.8
+clus.column <- paste0("SCT_snn_res.", 0.8)
+Idents(srat) <- clus.column
+
+```
+
+**Exercise 1:** Given these splits in the clustree diagram, see if you can find meaningful gene expression differences that explain the splits.
+
+<!-- lastly, save the complete sesssion for the next time -->
+```{r savesession, include=FALSE} 
+if(Sys.getenv("nodump")!="TRUE")
+    save(file="session.rda", list=c("srat", ls(pat="col|CFG")))
+```
