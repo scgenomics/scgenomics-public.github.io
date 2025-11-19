@@ -5,6 +5,8 @@ when running ~/git/scgenomics.github.io/push-to-public.sh
 
 -->
 
+**Note: this repo has moved to https://bitbucket.org/princessmaximacenter/intro_scrnaseq_course/src/main/ on 19 Nov 2025**
+
 This is the public version of the website we used for the course.
 It contains all the code, but no data, nor images. 
 
